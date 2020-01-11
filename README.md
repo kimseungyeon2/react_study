@@ -1,1 +1,1 @@
-git study 中
+React study 中
