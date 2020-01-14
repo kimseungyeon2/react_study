@@ -1,9 +1,16 @@
 import React from 'react';
+// 배열이나 객체 수정/추가/삭제를 용이하기 위한 리액트 module.
+import update from 'react-addons-update';
+// components
 import ContactInfo from './Contactinfo';
+import ContactDetails from './ContactDetails';
+import ContactCreate from './ContactCreate';
+
 export default class Contact extends React.Component{
     constructor(props){
         super(props);
         this.state = {
+            selectedKey: -1,
             keyword:'',
             contactData: [
                 {
@@ -43,10 +50,59 @@ export default class Contact extends React.Component{
             Allow function 을 사용한다 Allow function의 this는 부모함수 의 This 를 상속받기 때문에 항상같음.
         */
         // this.handleChange = this.handleChange.bind(this);
+        // this.handleClick = this.handleClick.bind(this);
+    }
+    componentWillMount(){
+        const contactData = localStorage.contactData;
+        if(contactData){
+            this.setState({
+                contactData: JSON.parse(contactData)
+            })
+        }
+    }
+    componentDidUpdate(prevProps,prevState){
+        if(JSON.stringify(prevState.contactData)!= JSON.stringify(this.state.contactData)){
+            localStorage.contactData = JSON.stringify(this.state.contactData);
+        }
     }
     handleChange = (e) => {
         this.setState({
             keyword:e.target.value
+        });
+    }
+    handleClick = (key) => {
+        this.setState({
+            selectedKey: key
+        });
+    }
+    handleCreate = (contact) => {
+        // 생성
+        this.setState({
+            contactData: update(this.state.contactData,{$push: [contact]})
+        });
+    }
+    handleRemove = () => {
+        // 삭제
+        if(this.state.selectedKey < 0){
+            return;
+        }
+
+        this.setState({
+            contactData: update(this.state.contactData,{$splice: [[this.state.selectedKey,1]]}),
+            selectedKey: -1
+        });
+    }
+    handleEdit = (name,phone) => {
+        // 수정
+        this.setState({
+            contactData: update(this.state.contactData,
+                {
+                    [this.state.selectedKey]:{
+                        name: {$set: name},
+                        phone: {$set: phone}
+                    }
+                }
+            )
         });
     }
     render(){
@@ -57,7 +113,16 @@ export default class Contact extends React.Component{
             });
 
             return data.map((contact,i) =>{
-                return (<ContactInfo contact={contact} key={i}></ContactInfo>);
+                return (<ContactInfo 
+                    contact={contact} 
+                    key={i}
+                    /*
+                        Allow method 를 이용해서 매개변수 전달
+                        다른방법
+                        this.method.bind(this,parameter);
+                    */ 
+                    onClick={() => this.handleClick(i)}
+                ></ContactInfo>);
             });
         };
 
@@ -71,6 +136,16 @@ export default class Contact extends React.Component{
                     onChange={this.handleChange}
                 />
                 <div>{mapToComponents(this.state.contactData)}</div>
+                <ContactDetails 
+                    isSelected={(this.state.selectedKey != -1)?true:false}
+                    contact={this.state.contactData[this.state.selectedKey]}
+                    onRemove={this.handleRemove}
+                    onEdit={this.handleEdit}
+                ></ContactDetails>
+                <ContactCreate
+                // () 없이 그 함수 그자체를 전달 ,왜?, 랜더링 되면서 함수가 실행됨
+                    onCreate={this.handleCreate}
+                ></ContactCreate>
             </div>
         );
     }
